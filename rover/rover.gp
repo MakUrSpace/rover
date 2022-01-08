@@ -13,18 +13,18 @@
         "REGION": "THING",
         "SORT": "right",
         "DEVICE_TYPE": "out_pin",
-        "PIN": "18"
+        "PIN": "17"
     },
     "THING|||||center": {
         "REGION": "THING",
         "SORT": "center",
         "DEVICE_TYPE": "out_pin",
-        "PIN": "17"
+        "PIN": "27"
     },
     "THING|||||left": {
         "REGION": "THING",
         "SORT": "left",
         "DEVICE_TYPE": "out_pin",
-        "PIN": "27"
+        "PIN": "18"
     }
 }

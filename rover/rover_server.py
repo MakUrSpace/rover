@@ -27,7 +27,7 @@ class node:
 class button:
     button_string = '<a-box position="{position}" rotation="0 45 0" color="{color}"></a-box>'
     num_buttons = sum([comb(len(node.nodes), num_active) for num_active in range(1, len(node.nodes))])  # aggregated nCr for r in [1, # of Nodes)
-    button_classes = 'w-32 mr-2 mb-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full'
+    button_classes = 'h-64 w-64 text-3xl mr-2 mb-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full'
     buttons = {}
     button_handlers = {}
 
@@ -75,7 +75,7 @@ async def simulator():
     scene_elements = "\n".join(scene_elements)
 
     wp.body_html = f"""
-    <a-scene>
+    <a-scene device-orientation-permission-ui="enabled: false">
         {scene_elements}
     </a-scene>
 """
@@ -92,7 +92,7 @@ async def rover_ui():
     )
     jp.Div(a=wp, classes="flex justify-center").add(
         jp.Button(text="Reward", classes=button.button_classes, id="reward", click=button.reward))
-    btnDiv = jp.Div(a=wp, classes="flex-wrap justify-center") 
+    btnDiv = jp.Div(a=wp, classes="flex-wrap text-center") 
     for btn in button.buttons.values():
         btnDiv.add(btn)
     jp.Div(a=wp, classes="flex justify-center").add(
