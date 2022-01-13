@@ -3,23 +3,25 @@ from math import comb
 from itertools import combinations, chain
 import justpy as jp
 from groundplane import groundplane
+import asyncio
 
 
 rover_interface = groundplane(f"{dirname(__file__)}/rover.gp")
 
 
 class node:
-    node_string = '<a-sphere position="{position}" radius="1.25" color="{color}"></a-sphere>'  # Core a-frame html snippet for defining a node
+    node_string = '<a-sphere id="{nodeId}" position="{position}" radius="1.25" color="{color}"></a-sphere>'  # Core a-frame html snippet for defining a node
     active_color = 16711680  # 0xFF0000 - hex code for red
+    inactive_color = 10462934 # 0x9FA6D6 - hex code for bluish-gray
     gradient = 1114112  # 0x110000 - shade of red to use when showing state change
     nodes = {"right": rover_interface.right, "center": rover_interface.center, "left": rover_interface.left}
 
     @classmethod
     def position(cls, pos):
         positions =  {
-            "left": "-10 0 -10",
-            "right": "10 0 -10",
-            "center": "0 0 -10"}
+            "left": "3 -7.3 -15",
+            "right": "-4 -7.3 -15",
+            "center": "-0.5 -12 -15"}
         assert pos in positions.keys(), f"Unrecognized position {pos}"
         return positions[pos]
 
@@ -41,6 +43,7 @@ class button:
 
     @classmethod
     def reward(cls, *args, **kwargs):
+        print("Rewarding!!")
         rover_interface.request_state({"center": {"state": 1}, "right": {"state": 1}, "left": {"state": 1}})
 
     @classmethod
@@ -60,45 +63,84 @@ button.buttons = {
 }
 
 
-async def simulator():
-    wp = jp.WebPage()
-    wp.head_html = '<script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>'
-    wp.add(jp.Div(text="umm"))
+def AframeDoc():
+    state = rover_interface.state()
+    print(f"Generating AFrame Interface for:\n{state}")
+    activity = {
+        nodeName: hex(node.active_color
+                      if state[nodeName]['state'] == 1 else
+                      node.inactive_color).replace("0x", "#")
+        for nodeName in node.nodes.keys()
+    }
+    scene_elements = "\n".join([
+        node.node_string.format(
+            nodeId=f"node_{nodeName}",
+            position=node.position(nodeName),
+            color=activity[nodeName]
+        ) for nodeName in node.nodes.keys()
+    ])
+    aframe_doc = f"""
+        <a-scene device-orientation-permission-ui="enabled: false">
+            <a-asset>
+                <a-asset-item response-type="arraybuffer" id="dogModel" src="/static/static/Dog.stl"></a-asset-item>
+            </a-asset>
+            <a-entity rotation="20 10 0" position="3 2 -3">
+                <a-entity stl-model="src: #dogModel" position="-5 -14 -20" rotation="-90 0 0" scale="0.005 0.005 0.005"
+                    material="color: #00d000; roughness: 1; metalness: 0"></a-entity>
+                {scene_elements}
+            </a-entity>
+        </a-scene>
+    """
+    return aframe_doc
 
-    ## Build scene
-    scene_elements = [
-            node.node_string.format(
-                position=node.position(nodeName),
-                color=hex(node.active_color).replace('0x', '#')
-            ) for nodeName in node.nodes.keys()
-    ]
-    scene_elements = "\n".join(scene_elements)
 
-    wp.body_html = f"""
-    <a-scene device-orientation-permission-ui="enabled: false">
-        {scene_elements}
-    </a-scene>
+simulator = jp.WebPage(delete_flag=False)
+simulator.add(jp.Div(text="umm"))
+
+
+async def getSimulator():
+    simulator.head_html = """
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="/static/static/aframe-stl-model.js"></script>
 """
-    return wp
+    async def node_monitor(webpage):
+        while True:
+            if (aframeDoc := AframeDoc()) != webpage.body_html:
+                print("Rebuilding")
+                webpage.body_html = aframeDoc
+                await webpage.update()
+                print("Rebuild complete!")
+            await asyncio.sleep(0.1)
+
+    # Build AFrame scene continuously every 0.1 seconds
+    simulator.body_html = AframeDoc()
+    jp.run_task(node_monitor(simulator))
+    return simulator
+
+
+ui = jp.WebPage(delete_flag=False)
 
 
 async def rover_ui():
-    wp = jp.WebPage()
+    wp = ui
     wp.title = "RoverPy"
     jp.Div(a=wp, text="Welcome to Rover")
+    content_container = jp.Div(a=wp, id="coreContainer", classes="grid grid-cols-1")
     jp.Div(
-        a=wp,
+        a=content_container,
         inner_html=f"""<iframe src="/simulator" width=100% height="300" style:"border:1px solid black;">"""
     )
-    jp.Div(a=wp, classes="flex justify-center").add(
+    jp.Div(a=content_container, classes="flex justify-center").add(
         jp.Button(text="Reward", classes=button.button_classes, id="reward", click=button.reward))
-    btnDiv = jp.Div(a=wp, classes="flex-wrap text-center") 
+    btnDiv = jp.Div(a=content_container, classes="flex-wrap text-center") 
     for btn in button.buttons.values():
         btnDiv.add(btn)
-    jp.Div(a=wp, classes="flex justify-center").add(
+    jp.Div(a=content_container, classes="flex justify-center").add(
         jp.Button(text="Silence", classes=button.button_classes, id="silence", click=button.silence))
+
     return wp
 
+if __name__ == "__main__":
+    jp.Route("/simulator", getSimulator)
+    jp.justpy(rover_ui, host="0.0.0.0")
 
-jp.Route("/simulator", simulator)
-jp.justpy(rover_ui, host="0.0.0.0")
