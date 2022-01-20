@@ -9,8 +9,31 @@ import asyncio
 rover_interface = groundplane(f"{dirname(__file__)}/rover.gp")
 
 
+class Entity(jp.Div):
+    html_tag = 'a-entity'
+    attributes = ["position", "rotation", "stl-model", "scale", "material"]
+
+    def __init__(self, position="0 0 0", rotation="0 0 0", stl_model="", scale="1 1 1", material="", **kwargs):
+        self.position = position
+        self.rotation = rotation
+        self.stl_model = stl_model
+        self.scale = scale
+        self.material = material
+        super().__init__(**kwargs)
+
+
+class Sphere(jp.Div):
+    html_tag = 'a-sphere'
+    attributes = ["position", "radius", "color"]
+
+    def __init__(self, position="0 0 0", radius="1", color="#FF0000", **kwargs):
+        self.position = position
+        self.radius = radius
+        self.color = color
+        super().__init__(**kwargs)
+
+
 class node:
-    node_string = '<a-sphere id="{nodeId}" position="{position}" radius="1.25" color="{color}"></a-sphere>'  # Core a-frame html snippet for defining a node
     active_color = 16711680  # 0xFF0000 - hex code for red
     inactive_color = 10462934 # 0x9FA6D6 - hex code for bluish-gray
     gradient = 1114112  # 0x110000 - shade of red to use when showing state change
@@ -63,35 +86,15 @@ button.buttons = {
 }
 
 
-def AframeDoc():
+
+def getNodeActivity():
     state = rover_interface.state()
-    print(f"Generating AFrame Interface for:\n{state}")
-    activity = {
+    return {
         nodeName: hex(node.active_color
                       if state[nodeName]['state'] == 1 else
                       node.inactive_color).replace("0x", "#")
         for nodeName in node.nodes.keys()
     }
-    scene_elements = "\n".join([
-        node.node_string.format(
-            nodeId=f"node_{nodeName}",
-            position=node.position(nodeName),
-            color=activity[nodeName]
-        ) for nodeName in node.nodes.keys()
-    ])
-    aframe_doc = f"""
-        <a-scene device-orientation-permission-ui="enabled: false">
-            <a-asset>
-                <a-asset-item response-type="arraybuffer" id="dogModel" src="/static/static/Dog.stl"></a-asset-item>
-            </a-asset>
-            <a-entity rotation="20 10 0" position="3 2 -3">
-                <a-entity stl-model="src: #dogModel" position="-5 -14 -20" rotation="-90 0 0" scale="0.005 0.005 0.005"
-                    material="color: #00d000; roughness: 1; metalness: 0"></a-entity>
-                {scene_elements}
-            </a-entity>
-        </a-scene>
-    """
-    return aframe_doc
 
 
 simulator = jp.WebPage(delete_flag=False)
@@ -103,22 +106,42 @@ async def getSimulator():
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="/static/static/aframe-stl-model.js"></script>
 """
-    async def node_monitor(webpage):
-        while True:
-            if (aframeDoc := AframeDoc()) != webpage.body_html:
-                print("Rebuilding")
-                webpage.body_html = aframeDoc
-                await webpage.update()
-                print("Rebuild complete!")
-            await asyncio.sleep(0.1)
 
     # Build AFrame scene continuously every 0.1 seconds
-    simulator.body_html = AframeDoc()
+    scene = jp.Div(a=simulator)
+    scene.html_tag = 'a-scene'
+    assets = jp.Div(a=scene)
+    assets.html_tag = 'a-assets'
+    assets.inner_html = '<a-asset-item response-type="arraybuffer" id="house" src="/static/static/Dog.stl"></a-asset-item>'
+    rover = Entity(a=scene, id="rover", position="3 2 -3", rotation="20 10 0")
+    entity = Entity(a=rover, id="dog_model", position="-5 -14 -20", rotation="-90 0 0", stl_model = "src: #house", scale="0.005 0.005 0.005", material="color:#00d000; roughness: 1; metalness: 0")
+    sky = jp.Div(a=scene)
+    sky.html_tag = 'a-sky'
+    sky.prop_list.extend(["color"])
+    sky.color = "#000000"
+
+    activity = getNodeActivity()
+    scene_elements = {
+        nodeName: Sphere(a=rover,
+                         id=f"node_{nodeName}",
+                         position=node.position(nodeName),
+                         radius="1.25",
+                         color=activity[nodeName])
+        for nodeName in node.nodes.keys()}
+
+    async def node_monitor(webpage):
+        while True:
+            activity = getNodeActivity()
+            for nodeName, nodeColor in activity.items():
+                setattr(scene_elements[nodeName], "color", nodeColor)
+            jp.run_task(simulator.update())
+            await asyncio.sleep(0.1)
+
     jp.run_task(node_monitor(simulator))
     return simulator
 
 
-ui = jp.WebPage(delete_flag=False)
+ui = jp.WebPage()
 
 
 async def rover_ui():
