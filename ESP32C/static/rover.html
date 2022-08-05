@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Rover Vibration Harness HI">
+  <meta name="author" content="musingsole">
+
+  <title>Rover</title>
+  <!-- TODO: Figure out image/x-icon: <link rel="shortcut icon" href="rover.png" type="image/x-icon"> -->
+
+</head>
+
+<body>
+  <h1>Woof Woof, Rover!</h1>
+  <p>{pageMessage}</p>
+  <br>
+
+  <!-- Command Palette -->
+  <table>
+    <tr>
+      <th>Command</th>
+    </tr>
+    <tr>
+      <td>
+        <form action="/command/reward" method="post">
+          <input type="submit" value="Reward">
+        </form>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <form action="/command/sit" method="post">
+          <input type="submit" value="Sit">
+        </form>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <form action="/command/come" method="post">
+          <input type="submit" value="Come">
+        </form>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <form action="/command/off" method="post">
+          <input type="submit" value="Off">
+        </form>
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>
